@@ -44,7 +44,7 @@ resource "azurerm_container_app" "api" {
     }
 
     min_replicas = 1 # Always on — no cold starts
-    max_replicas = 3
+    max_replicas = 1
   }
 
   lifecycle {
