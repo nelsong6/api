@@ -2,20 +2,27 @@ name: Infrastructure
 
 on:
   push:
-    branches: ["main"]
-    paths: ["tofu/**"]
+    branches: [main]
+    paths: ['tofu/**']
   pull_request:
-    branches: ["main"]
-    paths: ["tofu/**"]
+    branches: [main]
+    paths: ['tofu/**']
   workflow_dispatch:
 
 concurrency:
   group: tofu-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
 
 jobs:
   tofu:
     uses: nelsong6/pipeline-templates/.github/workflows/tofu-plan-apply-template.yml@main
     with:
-      working_dir: tofu
-      state_key: api.tfstate
+      working_directory: tofu
+      backend_storage_account: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
+      backend_key: api.tfstate
     secrets: inherit
