@@ -23,7 +23,7 @@ resource "azurerm_container_app" "api" {
   template {
     container {
       name   = "shared-api"
-      image  = "ghcr.io/nelsong6/api/shared-api:latest"
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"
       cpu    = 0.25
       memory = "0.5Gi"
 
