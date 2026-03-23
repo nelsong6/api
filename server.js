@@ -5,6 +5,7 @@
 // Route mounting:
 //   /workout/*  → @nelsong6/kill-me-routes
 //   /plant/*    → @nelsong6/plant-agent-routes
+//   /homepage/* → @nelsong6/my-homepage-routes
 //   /auth/*     → shared Microsoft OAuth
 //   /health     → health check
 
@@ -26,6 +27,9 @@ import {
   createCardioRoutes,
   createAdminRoutes,
 } from '@nelsong6/kill-me-routes';
+
+// my-homepage routes
+import { createHomepageApp } from '@nelsong6/my-homepage-routes';
 
 // plant-agent routes
 import {
@@ -120,6 +124,15 @@ async function startServer() {
   app.use('/plant', createChatRoutes({ plantsContainer, eventsContainer, chatsContainer, requireAuth, anthropicApiKey: config.anthropicApiKey, storageAccountEndpoint: config.storageAccountEndpoint }));
   app.use('/plant', createPushRoutes({ pushSubscriptionsContainer, requireAuth, vapidPublicKey: config.vapidPublicKey }));
   app.use('/plant', createNotifyRoutes({ pushSubscriptionsContainer, plantsContainer, eventsContainer, anthropicApiKey: config.anthropicApiKey, vapidPublicKey: config.vapidPublicKey, vapidPrivateKey: config.vapidPrivateKey, notifyApiKey: config.notifyApiKey }));
+
+  // ── Mount my-homepage routes at /homepage ──
+  const homepageDb = cosmosClient.database('HomepageDB');
+  const homepageContainer = homepageDb.container('userdata');
+
+  app.use('/homepage', createHomepageApp({
+    config: config.homepage,
+    container: homepageContainer,
+  }));
 
   // 404
   app.use((req, res) => {

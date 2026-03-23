@@ -15,6 +15,7 @@
     "@azure/identity": "^4.0.0",
     "@azure/keyvault-secrets": "^4.10.0",
     "@nelsong6/kill-me-routes": "^0.1.0",
+    "@nelsong6/my-homepage-routes": "^0.1.1",
     "@nelsong6/plant-agent-routes": "^0.1.0",
     "cors": "^2.8.6",
     "dotenv": "^16.4.0",

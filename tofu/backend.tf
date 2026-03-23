@@ -65,11 +65,13 @@ resource "azurerm_container_app" "api" {
         # All app frontends
         "https://workout.romaine.life",
         "https://plants.romaine.life",
+        "https://homepage.romaine.life",
 
         # Development
         "http://localhost:5173",
         "http://localhost:4173",
-        "http://localhost:5174"
+        "http://localhost:5174",
+        "http://localhost:5500"
       ]
 
       allowed_methods           = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
