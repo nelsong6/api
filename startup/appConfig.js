@@ -41,7 +41,7 @@ export async function fetchAppConfig() {
 
   // Plant-agent specific config
   const [storageEndpointSetting] = await Promise.all([
-    appConfigClient.getConfigurationSetting({ key: 'plant/storage_account_endpoint' }),
+    appConfigClient.getConfigurationSetting({ key: 'plants/storage_account_endpoint' }).catch(() => ({ value: null })),
   ]);
 
   const [anthropicApiKey, vapidPublicKey, vapidPrivateKey, notifyApiKey] = (
