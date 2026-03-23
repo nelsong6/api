@@ -1,0 +1,21 @@
+name: Infrastructure
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["tofu/**"]
+  pull_request:
+    branches: ["main"]
+    paths: ["tofu/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: tofu-${{ github.ref }}
+
+jobs:
+  tofu:
+    uses: nelsong6/pipeline-templates/.github/workflows/tofu-plan-apply-template.yml@main
+    with:
+      working_dir: tofu
+      state_key: api.tfstate
+    secrets: inherit

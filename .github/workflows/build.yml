@@ -1,0 +1,30 @@
+name: Phase 1 - CI Build
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  repository_dispatch:
+    types: [dependency-updated]
+
+jobs:
+  tofu-outputs:
+    uses: nelsong6/pipeline-templates/.github/workflows/tofu-outputs-template.yml@main
+    with:
+      storage_account: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
+      state_key: api.tfstate
+    secrets: inherit
+
+  build-pipeline:
+    needs: tofu-outputs
+    uses: nelsong6/pipeline-templates/.github/workflows/container-app-build-template.yml@main
+    with:
+      node_version: '20'
+      image_name_suffix: ${{ fromJSON(needs.tofu-outputs.outputs.outputs_json).container_app_name }}
+    secrets: inherit

@@ -1,0 +1,68 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Phase 1 - CI Build"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  tofu-outputs:
+    uses: nelsong6/pipeline-templates/.github/workflows/tofu-outputs-template.yml@main
+    with:
+      storage_account: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
+      state_key: api.tfstate
+    secrets: inherit
+
+  deploy:
+    name: Deploy Shared API
+    needs: tofu-outputs
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.ARM_CLIENT_ID }}
+          tenant-id: ${{ vars.ARM_TENANT_ID }}
+          subscription-id: ${{ vars.ARM_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Container App
+        env:
+          CONTAINER_APP_NAME: ${{ fromJSON(needs.tofu-outputs.outputs.outputs_json).container_app_name }}
+          IMAGE_NAME: ${{ github.repository }}/${{ fromJSON(needs.tofu-outputs.outputs.outputs_json).container_app_name }}
+        run: |
+          az containerapp update \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "infra" \
+            --image "${{ env.REGISTRY }}/$IMAGE_NAME:${{ env.TARGET_SHA }}"
+
+      - name: Bind Custom Domain & Generate Certificate
+        env:
+          CONTAINER_APP_NAME: ${{ fromJSON(needs.tofu-outputs.outputs.outputs_json).container_app_name }}
+          CUSTOM_DOMAIN: ${{ fromJSON(needs.tofu-outputs.outputs.outputs_json).custom_domain }}
+          ACA_ENV_ID: /subscriptions/${{ vars.ARM_SUBSCRIPTION_ID }}/resourceGroups/infra/providers/Microsoft.App/managedEnvironments/infra-aca
+        run: |
+          BINDING=$(az containerapp hostname list \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "infra" \
+            --query "[?name=='$CUSTOM_DOMAIN'].bindingType" -o tsv)
+          if [ "$BINDING" = "SniEnabled" ]; then
+            echo "Certificate already bound for $CUSTOM_DOMAIN, skipping."
+            exit 0
+          fi
+          az containerapp hostname bind \
+            --hostname "$CUSTOM_DOMAIN" \
+            --resource-group "infra" \
+            --name "$CONTAINER_APP_NAME" \
+            --environment "$ACA_ENV_ID" \
+            --validation-method CNAME
