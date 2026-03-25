@@ -61,12 +61,13 @@ export async function fetchAppConfig() {
     return (await kvClient.getSecret(secretName)).value;
   }
 
-  const [homepageAuth0DomainSetting, homepageAuth0ClientIdSetting, homepageAuth0ClientSecretSetting, homepageStorageEndpointSetting] =
+  const [homepageAuth0DomainSetting, homepageAuth0ClientIdSetting, homepageAuth0ClientSecretSetting, homepageStorageEndpointSetting, homepageSwaHostnameSetting] =
     await Promise.all([
       appConfigClient.getConfigurationSetting({ key: 'homepage/AUTH0_DOMAIN' }).catch(() => ({ value: null })),
       appConfigClient.getConfigurationSetting({ key: 'homepage/AUTH0_APPLE_CLIENT_ID' }).catch(() => ({ value: null })),
       appConfigClient.getConfigurationSetting({ key: 'homepage/AUTH0_APPLE_CLIENT_SECRET' }).catch(() => ({ value: null })),
       appConfigClient.getConfigurationSetting({ key: 'homepage/storage_account_endpoint' }).catch(() => ({ value: null })),
+      appConfigClient.getConfigurationSetting({ key: 'homepage/swa_default_hostname' }).catch(() => ({ value: null })),
     ]);
 
   const [googleClientIdSetting, googleClientSecretSetting, microsoftClientSecretSetting] =
@@ -124,6 +125,7 @@ export async function fetchAppConfig() {
       auth0AppleClientId: homepageAuth0ClientIdSetting?.value,
       auth0AppleClientSecret: homepageAuth0ClientSecretSetting?.value,
       storageAccountEndpoint: homepageStorageEndpointSetting?.value,
+      swaDefaultHostname: homepageSwaHostnameSetting?.value,
     },
   };
 
