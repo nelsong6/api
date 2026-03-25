@@ -28,3 +28,8 @@ data "azurerm_key_vault" "main" {
   name                = "romaine-kv"
   resource_group_name = local.infra.resource_group_name
 }
+
+data "azurerm_app_configuration_key" "homepage_swa_hostname" {
+  configuration_store_id = data.azurerm_app_configuration.infra.id
+  key                    = "homepage/swa_default_hostname"
+}

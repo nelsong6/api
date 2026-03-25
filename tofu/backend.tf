@@ -67,6 +67,9 @@ resource "azurerm_container_app" "api" {
         "https://plants.romaine.life",
         "https://homepage.romaine.life",
 
+        # Bypass (auto-generated SWA URLs for firewall workaround)
+        "https://${data.azurerm_app_configuration_key.homepage_swa_hostname.value}",
+
         # Development
         "http://localhost:5173",
         "http://localhost:4173",
