@@ -53,52 +53,6 @@ export async function fetchAppConfig() {
     ])
   ).map((s) => s.value);
 
-  // My-homepage specific config
-  // Resolve App Config Key Vault references → actual secret values
-  async function resolveKvReference(setting) {
-    const { uri } = JSON.parse(setting.value);
-    const secretName = new URL(uri).pathname.split('/')[2];
-    return (await kvClient.getSecret(secretName)).value;
-  }
-
-  const [homepageAuth0DomainSetting, homepageAuth0ClientIdSetting, homepageAuth0ClientSecretSetting, homepageStorageEndpointSetting, homepageSwaHostnameSetting] =
-    await Promise.all([
-      appConfigClient.getConfigurationSetting({ key: 'homepage/AUTH0_DOMAIN' }).catch(() => ({ value: null })),
-      appConfigClient.getConfigurationSetting({ key: 'homepage/AUTH0_APPLE_CLIENT_ID' }).catch(() => ({ value: null })),
-      appConfigClient.getConfigurationSetting({ key: 'homepage/AUTH0_APPLE_CLIENT_SECRET' }).catch(() => ({ value: null })),
-      appConfigClient.getConfigurationSetting({ key: 'homepage/storage_account_endpoint' }).catch(() => ({ value: null })),
-      appConfigClient.getConfigurationSetting({ key: 'homepage/swa_default_hostname' }).catch(() => ({ value: null })),
-    ]);
-
-  const [googleClientIdSetting, googleClientSecretSetting, microsoftClientSecretSetting] =
-    await Promise.all([
-      appConfigClient.getConfigurationSetting({ key: 'google_oauth_client_id' }).catch(() => ({ value: null })),
-      appConfigClient.getConfigurationSetting({ key: 'google_oauth_client_secret' }).catch(() => ({ value: null })),
-      appConfigClient.getConfigurationSetting({ key: 'microsoft_oauth_client_secret' }).catch(() => ({ value: null })),
-    ]);
-
-  const [googleClientId, googleClientSecret, microsoftClientSecret] = await Promise.all([
-    googleClientIdSetting?.value ? resolveKvReference(googleClientIdSetting).catch(() => null) : null,
-    googleClientSecretSetting?.value ? resolveKvReference(googleClientSecretSetting).catch(() => null) : null,
-    microsoftClientSecretSetting?.value ? resolveKvReference(microsoftClientSecretSetting).catch(() => null) : null,
-  ]);
-
-  const [githubClientId, githubClientSecret, homepageJwtSigningSecret] = (
-    await Promise.all([
-      kvClient.getSecret('github-oauth-client-id').catch(() => ({ value: null })),
-      kvClient.getSecret('github-oauth-client-secret').catch(() => ({ value: null })),
-      kvClient.getSecret('my-homepage-jwt-signing-secret').catch(() => ({ value: null })),
-    ])
-  ).map((s) => s.value);
-
-  // Also resolve microsoft_oauth_client_id for homepage (it needs the actual ID string, not just _plain)
-  const microsoftOAuthClientIdSetting = await appConfigClient
-    .getConfigurationSetting({ key: 'microsoft_oauth_client_id' })
-    .catch(() => null);
-  const homepageMicrosoftClientId = microsoftOAuthClientIdSetting?.value
-    ? await resolveKvReference(microsoftOAuthClientIdSetting).catch(() => null)
-    : null;
-
   const config = {
     // Shared
     cosmosDbEndpoint: cosmosEndpointSetting.value,
@@ -111,22 +65,6 @@ export async function fetchAppConfig() {
     vapidPublicKey,
     vapidPrivateKey,
     notifyApiKey,
-
-    // My-homepage
-    homepage: {
-      jwtSigningSecret: homepageJwtSigningSecret,
-      githubClientId,
-      githubClientSecret,
-      googleClientId,
-      googleClientSecret,
-      microsoftClientId: homepageMicrosoftClientId,
-      microsoftClientSecret,
-      auth0Domain: homepageAuth0DomainSetting?.value,
-      auth0AppleClientId: homepageAuth0ClientIdSetting?.value,
-      auth0AppleClientSecret: homepageAuth0ClientSecretSetting?.value,
-      storageAccountEndpoint: homepageStorageEndpointSetting?.value,
-      swaDefaultHostname: homepageSwaHostnameSetting?.value,
-    },
   };
 
   const required = ['cosmosDbEndpoint', 'jwtSigningSecret', 'microsoftClientId'];
@@ -141,9 +79,6 @@ export async function fetchAppConfig() {
   }
   if (!config.vapidPublicKey || !config.vapidPrivateKey) {
     console.warn('[appConfig] VAPID keys not found — push notifications will be unavailable');
-  }
-  if (!config.homepage.jwtSigningSecret) {
-    console.warn('[appConfig] Homepage JWT secret not found — homepage auth will be unavailable');
   }
 
   console.log('[appConfig] Application config fetched from Azure App Configuration');

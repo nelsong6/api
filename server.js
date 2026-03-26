@@ -29,7 +29,7 @@ import {
 } from '@nelsong6/kill-me-routes';
 
 // my-homepage routes
-import { createHomepageApp } from '@nelsong6/my-homepage-routes';
+import { createHomepageRoutes } from '@nelsong6/my-homepage-routes';
 
 // plant-agent routes
 import {
@@ -100,6 +100,7 @@ async function startServer() {
   app.use(msAuth);
   app.use('/workout', msAuth);
   app.use('/plant', msAuth);
+  app.use('/homepage', msAuth);
 
   // ── Mount kill-me routes at /workout ──
   app.use('/workout', createWorkoutRoutes({ container: workoutContainer, requireAuth, requireAdmin }));
@@ -129,8 +130,8 @@ async function startServer() {
   const homepageDb = cosmosClient.database('HomepageDB');
   const homepageContainer = homepageDb.container('userdata');
 
-  app.use('/homepage', createHomepageApp({
-    config: config.homepage,
+  app.use('/homepage', createHomepageRoutes({
+    requireAuth,
     container: homepageContainer,
   }));
 
