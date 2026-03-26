@@ -133,6 +133,7 @@ async function startServer() {
   app.use('/homepage', createHomepageRoutes({
     requireAuth,
     container: homepageContainer,
+    jwtSecret: config.jwtSigningSecret,
   }));
 
   // 404
