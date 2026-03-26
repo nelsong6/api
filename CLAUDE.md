@@ -37,23 +37,23 @@ Each app's routes are an npm package installed at build time:
 |--------|---------|----------|-------|
 | `/workout` | `@nelsong6/kill-me-routes` | WorkoutTrackerDB / workouts | Shared Microsoft auth mounted here too |
 | `/plant` | `@nelsong6/plant-agent-routes` | PlantAgentDB / plants, events, analyses, chats, push-subscriptions | Shared Microsoft auth mounted here too |
-| `/homepage` | `@nelsong6/my-homepage-routes` | HomepageDB / userdata | Self-contained sub-app with own cookie-parser, passport, JWT secret |
+| `/homepage` | `@nelsong6/my-homepage-routes` | HomepageDB / userdata | Receives `requireAuth`, `container`, `jwtSecret` via DI; has own local login route |
 | `/auth` | Local `auth/microsoft-routes.js` | WorkoutTrackerDB / workouts (account docs) | Microsoft OIDC → self-signed JWT |
 
 ### Auth model
 
-Two separate auth systems coexist:
+All apps use the same auth model:
 
-1. **Microsoft OAuth** (kill-me, plant-agent) — shared `microsoft-routes.js` at `/auth/microsoft/login`. Verifies Microsoft ID tokens via JWKS, issues 7-day JWTs signed with `api-jwt-signing-secret`. Admin: `nelson-devops-project@outlook.com`, all others: viewer.
+1. **Microsoft OAuth** — shared `microsoft-routes.js` at `/auth/microsoft/login`. Verifies Microsoft ID tokens via JWKS, issues 7-day JWTs signed with `api-jwt-signing-secret`. Admin: `nelson-devops-project@outlook.com`, all others: viewer. Used by kill-me, plant-agent, and my-homepage (MSAL.js client-side redirect flow).
 
-2. **Multi-provider OAuth** (my-homepage) — self-contained passport.js setup inside the homepage routes package. Supports GitHub, Google, Microsoft, Apple (via Auth0). Uses its own JWT secret (`my-homepage-jwt-signing-secret`). Callback URLs are domain-agnostic via `req.get('host')`.
+2. **Local login** (my-homepage only) — `POST /homepage/auth/local/login` bcrypt-based route in the homepage routes package for environments where Microsoft login is blocked by corporate firewalls. Issues JWTs with the shared `api-jwt-signing-secret`.
 
 ### Config loading
 
 `startup/appConfig.js` fetches all config at startup using system-assigned managed identity:
 
-- **Azure App Configuration** — Cosmos endpoint, OAuth client IDs, per-app settings (storage endpoints, Auth0 config, SWA hostname)
-- **Key Vault** — JWT signing secrets, OAuth client secrets, Anthropic API key, VAPID keys
+- **Azure App Configuration** — Cosmos endpoint, OAuth client IDs, per-app settings (storage endpoints, SWA hostnames)
+- **Key Vault** — JWT signing secret, Anthropic API key, VAPID keys
 - Key Vault references in App Config are resolved automatically via `resolveKvReference()`
 
 ### Infrastructure (tofu/)
@@ -70,12 +70,17 @@ CORS allows: `workout.romaine.life`, `plants.romaine.life`, `homepage.romaine.li
 ### CI/CD
 
 1. **build.yml** — triggers on push to main, PRs, or `repository_dispatch` ("dependency-updated" from app repos). Runs tests, builds and pushes Docker image to GHCR.
-2. **deploy.yml** — triggers after successful build. Updates Container App image tag, binds custom domain if needed.
+2. **deploy.yml** — triggers after successful build. Updates Container App image tag, binds custom domain if needed. Includes a health check that polls `https://$CUSTOM_DOMAIN/health` for up to 150 seconds after deploy.
 3. **tofu.yml** — triggers on changes to `tofu/`. Plans and applies infrastructure.
 
 The Dockerfile authenticates to GitHub Packages via `NPM_TOKEN` build arg to install `@nelsong6/*` scoped packages.
 
 ## Change Log
+
+### 2026-03-26
+
+- **Unified auth model** — my-homepage migrated from self-contained passport.js multi-provider OAuth to shared Microsoft MSAL.js flow + local login fallback. Homepage routes package now receives `requireAuth`, `container`, and `jwtSecret` via dependency injection instead of managing its own auth stack.
+- **Added deploy health check** — deploy.yml now polls `/health` endpoint after container update to verify the new revision is serving traffic.
 
 ### 2026-03-23
 
