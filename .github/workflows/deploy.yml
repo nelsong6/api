@@ -66,3 +66,20 @@ jobs:
             --name "$CONTAINER_APP_NAME" \
             --environment "$ACA_ENV_ID" \
             --validation-method CNAME
+
+      - name: Verify deployment health
+        env:
+          CUSTOM_DOMAIN: ${{ fromJSON(needs.tofu-outputs.outputs.outputs_json).custom_domain }}
+        run: |
+          echo "Waiting for container to become healthy..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$CUSTOM_DOMAIN/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i: status=$STATUS, retrying in 5s..."
+            sleep 5
+          done
+          echo "Health check failed after 30 attempts"
+          exit 1

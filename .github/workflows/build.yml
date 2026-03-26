@@ -1,7 +1,7 @@
 name: Phase 1 - CI Build
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   id-token: write
 
@@ -14,7 +14,41 @@ on:
     types: [dependency-updated]
 
 jobs:
+  # When a routes package publishes a new version, update the lockfile
+  # and push. The push triggers a normal build with the updated lockfile.
+  update-lockfile:
+    name: Update Dependency Lockfile
+    if: github.event_name == 'repository_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.DISPATCH_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+
+      - name: Update package lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm install ${{ github.event.client_payload.package }}@latest --package-lock-only
+
+      - name: Commit and push lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "Lockfile unchanged — package version already current"
+          else
+            git commit -m "chore: update ${{ github.event.client_payload.package }}"
+            git push
+          fi
+
   tofu-outputs:
+    if: github.event_name != 'repository_dispatch'
     uses: nelsong6/pipeline-templates/.github/workflows/tofu-outputs-template.yml@main
     with:
       storage_account: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
@@ -22,6 +56,7 @@ jobs:
     secrets: inherit
 
   build-pipeline:
+    if: github.event_name != 'repository_dispatch'
     needs: tofu-outputs
     uses: nelsong6/pipeline-templates/.github/workflows/container-app-build-template.yml@main
     with:
